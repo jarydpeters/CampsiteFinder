@@ -1,0 +1,113 @@
+# Minnesota campsite finder: all tunable settings live here.
+# Relative paths are resolved from the folder this file is in.
+# Any value can be overridden for one run without editing the file:
+#   python -m campfinder build --set criteria.lakes.max_distance_m=1000
+
+[project]
+crs = "EPSG:26915"                       # working CRS, UTM 15N, units are meters
+bbox = [-97.3, 43.4, -89.4, 49.5]        # lon/lat extent, used when no state boundary is given
+state_boundary = ""                      # optional: path to a Minnesota outline (any vector file)
+
+[outputs]
+dir = "output"                           # GeoJSON layers + shortlist.csv are written here
+simplify_m = 10                          # geometry simplification for the viewer, meters. 0 = none
+roads_scope = "candidates"               # "candidates" = roads near results only (small files)
+                                         # "all" = every road near campable land (can be huge)
+roads_margin_m = 1500
+private_land = true                      # draw "not public" land as its own layer
+
+# --------------------------------------------------------------------------
+# LAND
+# campable : land you would actually camp on. Results are only drawn here.
+#            Listed in priority order; if two sources overlap, the earlier one wins.
+# exclude  : land removed from campable (wilderness permit zones, etc.)
+# context  : other public land, shown on the map but never a result
+# Each source takes: name, path, layer (optional), query (optional pandas filter),
+# name_field (optional column holding the unit name, e.g. the forest name).
+# Run `python -m campfinder inspect <file>` to see real column names and values,
+# then adjust the queries below. The PAD-US column names are as documented by USGS;
+# the DNR ones are guesses until you inspect your download.
+# --------------------------------------------------------------------------
+[[land.campable]]
+name = "National forest"
+path = "data/land/PADUS4_1_StateMN.gdb"
+layer = "PADUS4_1Fee_State_MN"
+query = "Des_Tp == 'NF'"
+name_field = "Unit_Nm"
+
+[[land.campable]]
+name = "State forest"
+path = "data/land/PADUS4_1_StateMN.gdb"
+layer = "PADUS4_1Fee_State_MN"
+query = "Loc_Ds == 'State Forest'"
+name_field = "Unit_Nm"
+
+[[land.exclude]]
+name = "Designated wilderness"
+path = "data/land/PADUS4_1_StateMN.gdb"
+layer = "PADUS4_1Designation_State_MN"
+query = "Des_Tp == 'WA'"
+
+[[land.context]]
+name = "Other public land"
+path = "data/land/PADUS4_1_StateMN.gdb"
+layer = "PADUS4_1Fee_State_MN"
+query = "Own_Type in ['FED', 'STAT', 'LOC', 'JNT']"
+name_field = "Mang_Name"
+
+# --------------------------------------------------------------------------
+# NIGHT SKY (raster -> polygons)
+# Default expects the Falchi artificial-brightness GeoTIFF (mcd/m2).
+# Values are divided by divide_by (natural sky brightness, 0.174 mcd/m2) and
+# cut at the breaks, which are ratios of artificial to natural brightness.
+# The labels are only approximate Bortle equivalents. Judge them against places
+# you know are dark and adjust the breaks. For a VIIRS radiance raster set
+# divide_by = 1 and put breaks in raw radiance units.
+# --------------------------------------------------------------------------
+[inputs.sky]
+path = "data/sky/falchi.tif"
+band = 1
+divide_by = 0.174
+breaks = [0.01, 0.06, 0.19, 0.50, 1.0, 3.0]
+labels = ["Pristine (~Bortle 1)", "Excellent (~2)", "Good (~3)", "Fair (~4)", "Moderate (~5)", "Bright (~6)", "City (7+)"]
+upsample = 1                             # 1 = true cell edges. >1 smooths contours by interpolation.
+
+[criteria.sky]
+enabled = true
+max_band = 2                             # accept bands 0..max_band (2 = Good or darker)
+
+# --------------------------------------------------------------------------
+# LAKES
+# --------------------------------------------------------------------------
+[inputs.lakes]
+path = "data/lakes/dnr_lakes.gpkg"
+name_field = ""                          # column holding the lake name, once you know it
+
+[criteria.lakes]
+enabled = true
+min_area_ha = 10                         # ignore ponds smaller than this
+shore_setback_m = 60                     # stay this far back from the water (~200 ft, a Leave No Trace norm, not a legal rule)
+max_distance_m = 600                     # but within this distance of it
+
+# --------------------------------------------------------------------------
+# ROADS
+# --------------------------------------------------------------------------
+[inputs.roads]
+path = "data/roads/minnesota-latest.osm.pbf"
+class_field = "highway"                  # only used for non-OSM road files
+name_field = "name"
+surface_field = "surface"
+
+[criteria.roads]
+enabled = true
+access_classes = ["track", "unclassified", "service", "residential", "tertiary", "secondary"]
+busy_classes = ["motorway", "trunk", "primary"]
+max_distance_m = 400                     # reachable: no farther than this from an access road
+busy_min_distance_m = 300                # quiet: no closer than this to a busy highway
+
+# --------------------------------------------------------------------------
+# RESULTS
+# --------------------------------------------------------------------------
+[candidates]
+min_area_ha = 1                          # drop slivers smaller than this
+sort_by = ["sky_band", "dist_lake_m", "dist_road_m"]   # shortlist ordering, best first

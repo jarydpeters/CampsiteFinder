@@ -1,0 +1,73 @@
+# Config for the synthetic fixtures. Run from the project root:
+#   python tests/make_fixtures.py
+#   python -m campfinder build --config tests/config.test.toml
+[project]
+crs = "EPSG:26915"
+bbox = [-95.0, 46.8, -93.6, 47.8]
+state_boundary = "fixtures/state.gpkg"
+
+[outputs]
+dir = "../test_output"
+simplify_m = 10
+roads_scope = "candidates"
+roads_margin_m = 1500
+private_land = true
+
+[[land.campable]]
+name = "National forest"
+path = "fixtures/land/padus_mn.gpkg"
+query = "Des_Tp == 'NF' and Category == 'Fee'"
+name_field = "Unit_Nm"
+
+[[land.campable]]
+name = "State forest"
+path = "fixtures/land/dnr_state_forest_lands.gpkg"
+query = ""
+name_field = "FOREST_NAME"
+
+[[land.exclude]]
+name = "Designated wilderness"
+path = "fixtures/land/padus_mn.gpkg"
+query = "Des_Tp == 'WA'"
+
+[[land.context]]
+name = "Other public land"
+path = "fixtures/land/padus_mn.gpkg"
+query = "Category == 'Fee' and Own_Type in ['FED', 'STAT', 'LOC', 'JNT']"
+name_field = "Mang_Name"
+
+[inputs.sky]
+path = "fixtures/sky/falchi.tif"
+band = 1
+divide_by = 0.174
+breaks = [0.01, 0.06, 0.19, 0.50, 1.0, 3.0]
+labels = ["Pristine (~Bortle 1)", "Excellent (~2)", "Good (~3)", "Fair (~4)", "Moderate (~5)", "Bright (~6)", "City (7+)"]
+upsample = 1
+
+[criteria.sky]
+enabled = true
+max_band = 2
+
+[inputs.lakes]
+path = "fixtures/lakes/dnr_lakes.gpkg"
+name_field = "pw_basin_name"
+
+[criteria.lakes]
+enabled = true
+min_area_ha = 10
+shore_setback_m = 60
+max_distance_m = 600
+
+[inputs.roads]
+path = "fixtures/roads/test.osm"
+
+[criteria.roads]
+enabled = true
+access_classes = ["track", "unclassified", "service", "residential", "tertiary", "secondary"]
+busy_classes = ["motorway", "trunk", "primary"]
+max_distance_m = 400
+busy_min_distance_m = 300
+
+[candidates]
+min_area_ha = 1
+sort_by = ["sky_band", "dist_lake_m", "dist_road_m"]

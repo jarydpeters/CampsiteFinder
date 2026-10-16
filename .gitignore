@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+data/*/*
+!data/*/.gitkeep
+output/
+test_output/
+tests/fixtures/
