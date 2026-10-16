@@ -189,7 +189,7 @@ def load_lakes(cfg, crs, roi) -> gpd.GeoDataFrame:
     path = cfg.resolve(cfg.get("inputs.lakes.path"))
     if not path.exists():
         raise SystemExit(f"Lakes file not found: {path}")
-    gdf = polygons_only(read_vector(path, crs=crs))
+    gdf = polygons_only(read_vector(path, cfg.get("inputs.lakes.layer"), cfg.get("inputs.lakes.query"), crs))
     nf = cfg.get("inputs.lakes.name_field", "")
     gdf["lake_name"] = gdf[nf] if nf and nf in gdf.columns else None
     if nf and nf not in gdf.columns:

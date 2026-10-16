@@ -46,7 +46,7 @@ name_field = "Unit_Nm"
 name = "Designated wilderness"
 path = "data/land/PADUS4_1_StateMN.gdb"
 layer = "PADUS4_1Designation_State_MN"
-query = "Des_Tp == 'WA'"
+query = "Des_Tp in ['WA', 'WSA'] or Loc_Ds in ['State Research Area', 'State Wildlife Management Area']"
 
 [[land.context]]
 name = "Other public land"
@@ -65,7 +65,7 @@ name_field = "Mang_Name"
 # divide_by = 1 and put breaks in raw radiance units.
 # --------------------------------------------------------------------------
 [inputs.sky]
-path = "data/sky/falchi.tif"
+path = "data/sky/World_Atlas_2015.tif"
 band = 1
 divide_by = 0.174
 breaks = [0.01, 0.06, 0.19, 0.50, 1.0, 3.0]
@@ -80,20 +80,16 @@ max_band = 2                             # accept bands 0..max_band (2 = Good or
 # LAKES
 # --------------------------------------------------------------------------
 [inputs.lakes]
-path = "data/lakes/dnr_lakes.gpkg"
-name_field = ""                          # column holding the lake name, once you know it
-
-[criteria.lakes]
-enabled = true
-min_area_ha = 10                         # ignore ponds smaller than this
-shore_setback_m = 60                     # stay this far back from the water (~200 ft, a Leave No Trace norm, not a legal rule)
-max_distance_m = 600                     # but within this distance of it
+path = "data/lakes/NHD_H_Minnesota_State_GDB.gdb"
+layer = "NHDWaterbody"
+query = "ftype in [390, 436]"
+name_field = "gnis_name"
 
 # --------------------------------------------------------------------------
 # ROADS
 # --------------------------------------------------------------------------
 [inputs.roads]
-path = "data/roads/minnesota-latest.osm.pbf"
+path = "data/roads/minnesota-261015.osm.pbf"
 class_field = "highway"                  # only used for non-OSM road files
 name_field = "name"
 surface_field = "surface"
